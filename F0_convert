@@ -1,0 +1,109 @@
+import cv2
+import numpy as np
+
+# base line frame number
+base_frame_number = 10
+
+#재생할 파일 
+VIDEO_FILE_PATH = '/home/changuk/Videos/axon mito calcium wCPA.avi'
+
+# 동영상 파일 열기
+cap = cv2.VideoCapture(VIDEO_FILE_PATH)
+ret, frame = cap.read()
+#잘 열렸는지 확인
+if cap.isOpened() == False:
+    print ('Can\'t open the video (%d)' % (VIDEO_FILE_PATH))
+    exit()
+
+#재생할 파일의 넓이 얻기
+
+width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+#재생할 파일의 높이 얻기
+height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+#재생할 파일의 프레임 레이트 얻기
+fps = int(cap.get(cv2.CAP_PROP_FPS))
+
+print('width {0}, height {1}, fps {2}'.format(width, height, fps))
+
+#XVID가 제일 낫다고 함.
+#linux 계열 DIVX, XVID, MJPG, X264, WMV1, WMV2.
+#windows 계열 DIVX
+#저장할 비디오 코덱
+fourcc = cv2.VideoWriter_fourcc('M','J','P','G')
+#저장할 파일 이름
+filename = 'axon mito calcium wCPA.avi_F0.avi'
+
+#파일 stream 생성
+out = cv2.VideoWriter(filename, fourcc, 3, (int(width), int(height)))
+#filename : 파일 이름
+#fourcc : 코덱
+#fps : 초당 프레임 수
+#width : 넓이
+#height : 높이
+
+
+#mean baseline image extraction
+cap2 = cv2.VideoCapture(VIDEO_FILE_PATH)
+base = np.zeros((100,100,3),np.uint16)
+
+for i in range(base_frame_number):
+    ret, frame = cap2.read()
+    frame = np.uint16(frame)
+    base = cv2.add(base, frame)
+
+BASE_FRAME = temp/base_frame_number
+
+cap3 = cv2.VideoCapture(VIDEO_FILE_PATH)
+max_value = 0
+min_value = 0
+while(True):
+    #파일로 부터 이미지 얻기
+    ret, frame = cap3.read()
+    #더 이상 이미지가 없으면 종료
+    #재생 다 됨
+    if frame is None:
+        break;
+
+    # 영상 처리
+    frame = np.uint16(frame)
+    f0_frame = (frame - BASE_FRAME)/BASE_FRAME
+    if np.amax(f0_frame) > max_value:
+        max_value = np.amax(f0_frame)
+    if np.amin(f0_frame) < min_value:
+        min_value = np.amin(f0_frame)
+    
+    #1ms 동안 키입력 대기
+    if cv2.waitKey(1) == 27:
+        break;
+
+cap4 = cv2.VideoCapture(VIDEO_FILE_PATH)
+
+while(True):
+    #파일로 부터 이미지 얻기
+    ret, frame = cap4.read()
+    #더 이상 이미지가 없으면 종료
+    #재생 다 됨
+    if frame is None:
+        break;
+
+    # 영상 처리
+    frame = np.uint16(frame)
+    f0_frame = (frame - BASE_FRAME)/BASE_FRAME
+    f0_frame_rescaled = (f0_frame - min_value)*128/(max_value - min_value)
+    f0_frame_final = np.uint8(f0_frame_rescaled)
+
+    
+    # 인식된 이미지 파일로 저장
+    out.write(f0_frame_final)
+
+    #1ms 동안 키입력 대기
+    if cv2.waitKey(1) == 27:
+        break;
+
+
+
+#저장 파일 종료
+out.release()
+
+#윈도우 종료
+cv2.destroyAllWindows()
